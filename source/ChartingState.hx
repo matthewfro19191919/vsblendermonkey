@@ -579,6 +579,338 @@ class ChartingState extends MusicBeatState
 	var syllableButtons:Array<FlxUIButton>;
 	var stepperNoteVolume:FlxUINumericStepper;
 
+	function addToolsUI():Void
+	{
+		gotoSectionStepper = new FlxUINumericStepper(10, 400, 1, 0, 0, 999, 0);
+		gotoSectionStepper.name = 'gotoSection';
+
+		var gotoSectionButton:FlxButton = new FlxButton(gotoSectionStepper.x, gotoSectionStepper.y + 20, "Go to Section", function()
+		{
+			changeSection(Std.int(gotoSectionStepper.value), true);
+			gotoSectionStepper.value = 0;
+		});
+
+		var check_mute_inst = new FlxUICheckBox(10, 10, null, null, "Mute Instrumental (in editor)", 100);
+		check_mute_inst.checked = false;
+		check_mute_inst.callback = function()
+		{
+			var vol:Float = Conductor.songVolume;
+
+			if (check_mute_inst.checked)
+				vol = 0;
+
+			musicStream.volume = vol;
+		};
+
+		var check_mute_vocals = new FlxUICheckBox(10, 225, null, null, "Mute Vocals (in editor)", 100);
+		check_mute_vocals.checked = false;
+		check_mute_vocals.callback = function()
+		{
+			var vol:Float = Conductor.songVolume;
+
+			if (check_mute_vocals.checked)
+				vol = 0;
+
+			vocals.volume = vol;
+		};
+
+		var check_bf_sample = new FlxUICheckBox(10, 250, null, null, "Mute Player 1 Samples (in editor)", 100);
+		check_bf_sample.checked = false;
+		check_bf_sample.callback = function()
+		{
+			bfSampleMute = false;
+			if (check_bf_sample.checked)
+			{
+				bfSampleMute = true;
+			}
+		};
+
+		var check_dad_sample = new FlxUICheckBox(10, 275, null, null, "Mute Player 2 Samples (in editor)", 100);
+		check_dad_sample.checked = false;
+		check_dad_sample.callback = function()
+		{
+			dadSampleMute = false;
+			if (check_dad_sample.checked)
+			{
+				dadSampleMute = true;
+			}
+		};
+
+		bfClick = new FlxUICheckBox(10, 30, null, null, "BF Note Click", 100);
+		bfClick.checked = false;
+
+		opClick = new FlxUICheckBox(10, 50, null, null, "Opp Note Click", 100);
+		opClick.checked = false;
+
+		var stepperBPMOld = new FlxUINumericStepper(10, 70, 1, 100, 1);
+		var arrowTxt = new FlxText(75, 70, 0, "->");
+		var stepperBPMNew = new FlxUINumericStepper(100, 70, 1, 100, 1);
+
+		var adjustBPM:FlxButton = new FlxButton(175, 70, "Adjust for BPM", function()
+		{
+			var allNotes:Array<Dynamic> = [];
+
+			var newBPM = stepperBPMNew.value;
+
+			for (x in 0..._song.notes.length)
+			{
+				for (y in 0..._song.notes[x].sectionNotes.length)
+				{
+					var mustHit:Bool = false;
+					if (_song.notes[x].mustHitSection && _song.notes[x].sectionNotes[y][1] < 4)
+						mustHit = true;
+					else if (!_song.notes[x].mustHitSection && _song.notes[x].sectionNotes[y][1] >= 4)
+						mustHit = true;
+					allNotes.push([_song.notes[x].sectionNotes[y], mustHit]);
+				}
+			}
+
+			// for (x in 0..._song.notes.length)
+			// {
+			// 	_song.notes[x].sectionNotes = [];
+			// }
+
+			for (noteIndex in 0...allNotes.length)
+			{
+				var oldTime = allNotes[noteIndex][0][0];
+				var oldSus = allNotes[noteIndex][0][2];
+				var oldLength = allNotes[noteIndex][0][6];
+				var oldBPM = stepperBPMOld.value;
+
+				var newTime = (oldBPM / newBPM) * oldTime;
+				var newSusLength = (oldBPM / newBPM) * oldSus;
+				var newNoteLength = (oldBPM / newBPM) * oldLength;
+				var newCrochet = ((60 / newBPM) * 1000);
+
+				allNotes[noteIndex][0][0] = newTime;
+				allNotes[noteIndex][0][2] = newSusLength;
+				allNotes[noteIndex][0][6] = newNoteLength;
+
+				var sectionNumber:Int = Math.floor(newTime / (newCrochet * 4));
+
+				// while (_song.notes[sectionNumber] == null)
+				// {
+				// 	addSection();
+				// }
+
+				// var mustHit:Bool = allNotes[noteIndex][1];
+				// if (_song.notes[sectionNumber].mustHitSection && mustHit)
+				// 	allNotes[noteIndex][0][1] = allNotes[noteIndex][0][1] % 4;
+				// else if (!_song.notes[sectionNumber].mustHitSection && mustHit)
+				// 	allNotes[noteIndex][0][1] = allNotes[noteIndex][0][1] % 4 + 4;
+				// else if (_song.notes[sectionNumber].mustHitSection && !mustHit)
+				// 	allNotes[noteIndex][0][1] = allNotes[noteIndex][0][1] % 4 + 4;
+				// else if (!_song.notes[sectionNumber].mustHitSection && !mustHit)
+				// 	allNotes[noteIndex][0][1] = allNotes[noteIndex][0][1] % 4;
+
+				// _song.notes[sectionNumber].sectionNotes.push(allNotes[noteIndex][0]);
+			}
+
+			updateGrid();
+		});
+
+		var stepperNoteOffset = new FlxUINumericStepper(10, 100, 1, 0);
+
+		var adjustNoteOffset:FlxButton = new FlxButton(75, 100, "Pitch Offset", function()
+		{
+			for (x in 0..._song.notes.length)
+			{
+				for (y in 0..._song.notes[x].sectionNotes.length)
+				{
+					if (_song.notes[x].sectionNotes[y][1] == 8)
+						continue;
+
+					var newPitch:Int = Std.int(_song.notes[x].sectionNotes[y][3] + stepperNoteOffset.value);
+					if (newPitch < 0)
+						newPitch = 0;
+					else if (newPitch > 127)
+						newPitch = 127;
+					_song.notes[x].sectionNotes[y][3] = newPitch;
+				}
+			}
+			updateGrid();
+		});
+
+		var exportVocalsButton:FlxButton = new FlxButton(10, 130, "Export Vocals", function()
+		{
+			exportVocals();
+		});
+
+		var tab_group_tools = new FlxUI(null, UI_box);
+		tab_group_tools.name = "Tools";
+
+		tab_group_tools.add(gotoSectionStepper);
+		tab_group_tools.add(gotoSectionButton);
+		tab_group_tools.add(check_mute_inst);
+		tab_group_tools.add(bfClick);
+		tab_group_tools.add(opClick);
+		tab_group_tools.add(check_mute_vocals);
+		tab_group_tools.add(check_bf_sample);
+		tab_group_tools.add(check_dad_sample);
+		tab_group_tools.add(stepperBPMOld);
+		tab_group_tools.add(arrowTxt);
+		tab_group_tools.add(stepperBPMNew);
+		tab_group_tools.add(adjustBPM);
+		tab_group_tools.add(stepperNoteOffset);
+		tab_group_tools.add(adjustNoteOffset);
+		tab_group_tools.add(exportVocalsButton);
+
+		UI_box.addGroup(tab_group_tools);
+		UI_box.scrollFactor.set();
+
+		FlxG.camera.follow(strumLine);
+	}
+
+	var stepperLength:FlxUINumericStepper;
+	var check_mustHitSection:FlxUICheckBox;
+	var check_changeBPM:FlxUICheckBox;
+	var stepperSectionBPM:FlxUINumericStepper;
+	var check_altAnim:FlxUICheckBox;
+
+	function addSectionUI():Void
+	{
+		var tab_group_section = new FlxUI(null, UI_box);
+		tab_group_section.name = 'Section';
+
+		stepperLength = new FlxUINumericStepper(10, 10, 4, 0, 0, 999, 0);
+		stepperLength.value = _song.notes[curSection].lengthInSteps;
+		stepperLength.name = "section_length";
+
+		stepperSectionBPM = new FlxUINumericStepper(10, 80, 1, 0, 0, 999, 0);
+		stepperSectionBPM.value = _song.notes[0].bpm;
+		stepperSectionBPM.name = 'section_bpm';
+
+		var stepperCopy:FlxUINumericStepper = new FlxUINumericStepper(110, 130, 1, 1, -999, 999, 0);
+
+		var copyButton:FlxButton = new FlxButton(10, 130, "Copy last section", function()
+		{
+			copySection(Std.int(stepperCopy.value));
+		});
+
+		var clearSectionButton:FlxButton = new FlxButton(10, 150, "Clear", clearSection);
+
+		var clearSectionOppButton:FlxButton = new FlxButton(110, 150, "Clear Opp", clearSectionOpp);
+
+		var clearSectionBFButton:FlxButton = new FlxButton(210, 150, "Clear BF", clearSectionBF);
+
+		var swapSection:FlxButton = new FlxButton(10, 170, "Swap section", swapSections);
+
+		var blankButton:FlxButton = new FlxButton(10, 300, "Full Clear", function()
+		{
+			for (x in 0..._song.notes.length)
+			{
+				_song.notes[x].sectionNotes = [];
+			}
+
+			updateGrid();
+		});
+
+		// Flips BF Notes
+		var bSideButton:FlxButton = new FlxButton(10, 200, "Flip BF Notes", function()
+		{
+			var flipTable:Array<Int> = [3, 2, 1, 0, 7, 6, 5, 4, 8];
+
+			// [noteStrum, noteData, noteSus]
+			for (x in _song.notes[curSection].sectionNotes)
+			{
+				if (_song.notes[curSection].mustHitSection)
+				{
+					if (x[1] < 4)
+						x[1] = flipTable[x[1]];
+				}
+				else
+				{
+					if (x[1] > 3)
+						x[1] = flipTable[x[1]];
+				}
+			}
+
+			updateGrid();
+		});
+
+		// Flips Opponent Notes
+		var bSideButton2:FlxButton = new FlxButton(10, 220, "Flip Opp Notes", function()
+		{
+			var flipTable:Array<Int> = [3, 2, 1, 0, 7, 6, 5, 4, 8];
+
+			// [noteStrum, noteData, noteSus]
+			for (x in _song.notes[curSection].sectionNotes)
+			{
+				if (_song.notes[curSection].mustHitSection)
+				{
+					if (x[1] > 3)
+						x[1] = flipTable[x[1]];
+				}
+				else
+				{
+					if (x[1] < 4)
+						x[1] = flipTable[x[1]];
+				}
+			}
+
+			updateGrid();
+		});
+
+		var stepperNoteOffset = new FlxUINumericStepper(10, 250, 1, 0);
+
+		var adjustNoteOffset:FlxButton = new FlxButton(75, 250, "Pitch Offset", function()
+		{
+			for (x in _song.notes[curSection].sectionNotes)
+			{
+				if (x[1] == 8)
+					continue;
+
+				var newPitch:Int = Std.int(x[3] + stepperNoteOffset.value);
+				if (newPitch < 0)
+					newPitch = 0;
+				else if (newPitch > 127)
+					newPitch = 127;
+				x[3] = newPitch;
+			}
+			updateGrid();
+		});
+
+		check_mustHitSection = new FlxUICheckBox(10, 30, null, null, "Must hit section", 100);
+		check_mustHitSection.name = 'check_mustHit';
+		check_mustHitSection.checked = _song.notes[0].mustHitSection;
+		// _song.needsVoices = check_mustHit.checked;
+
+		check_altAnim = new FlxUICheckBox(10, 400, null, null, "Alt Animation", 100);
+		check_altAnim.name = 'check_altAnim';
+
+		check_changeBPM = new FlxUICheckBox(10, 60, null, null, 'Change BPM', 100);
+		check_changeBPM.name = 'check_changeBPM';
+
+		// tab_group_section.add(stepperLength);
+		tab_group_section.add(stepperSectionBPM);
+		tab_group_section.add(stepperCopy);
+		tab_group_section.add(check_mustHitSection);
+		tab_group_section.add(check_altAnim);
+		tab_group_section.add(check_changeBPM);
+		tab_group_section.add(copyButton);
+		tab_group_section.add(clearSectionButton);
+		tab_group_section.add(clearSectionOppButton);
+		tab_group_section.add(clearSectionBFButton);
+		tab_group_section.add(swapSection);
+		tab_group_section.add(blankButton);
+		tab_group_section.add(bSideButton);
+		tab_group_section.add(bSideButton2);
+		tab_group_section.add(stepperNoteOffset);
+		tab_group_section.add(adjustNoteOffset);
+
+		UI_box.addGroup(tab_group_section);
+	}
+
+	var stepperSusLength:FlxUINumericStepper;
+	var stepperNoteOctave:FlxUINumericStepper;
+	var pitchButtons:Array<FlxUIButton>;
+	var stepperNotePreset:FlxUINumericStepper;
+	var stepperNoteVolume:FlxUINumericStepper;
+	var stepperNoteLength:FlxUINumericStepper;
+	var stepperNoteType:FlxUINumericStepper;
+	var noteDataButtons:Array<FlxUIButton>;
+
+
 	function pitchButton(xvalue:Int)
 	{
 		if (curSelectedNote == null)
@@ -1983,6 +2315,54 @@ class ChartingState extends MusicBeatState
 		_file.removeEventListener(IOErrorEvent.IO_ERROR, onSaveError);
 		_file = null;
 		FlxG.log.error("Problem saving Level data");
+	}
+
+	function exportVocals()
+	{
+		// FlxG.sound.playMusic(("assets/music/" + _song.song + "_Inst.ogg"));
+		// FlxG.sound.music.pause();
+
+		var vocalBytes = SoundFontThing.songToBytes(_song, musicStream.length);
+		var dadBytes = vocalBytes[0];
+		var bfBytes = vocalBytes[1];
+		var bfWav = SoundFontThing.rawPCMtoWAV(bfBytes);
+		var dadWav = SoundFontThing.rawPCMtoWAV(dadBytes);
+
+		var byteFile = new FileDialog();
+		byteFile.onSave.add(function(_)
+		{
+			var byteFile2 = new FileDialog();
+			byteFile2.onSave.add(function(_)
+			{
+				Pointer.ofArray(vocalBytes[1]).destroyArray();
+				bfWav.destroy();
+				Pointer.ofArray(vocalBytes[0]).destroyArray();
+				dadWav.destroy();
+				byteFile2.onSave.removeAll();
+				byteFile2.onCancel.removeAll();
+				byteFile.onCancel.removeAll();
+			});
+			byteFile2.onCancel.add(function()
+			{
+				Pointer.ofArray(vocalBytes[1]).destroyArray();
+				bfWav.destroy();
+				Pointer.ofArray(vocalBytes[0]).destroyArray();
+				dadWav.destroy();
+				byteFile2.onSave.removeAll();
+				byteFile2.onCancel.removeAll();
+				byteFile.onCancel.removeAll();
+			});
+			byteFile2.save(dadWav, null, _song.song.toLowerCase() + "_dadVocals.wav", "Save Vocals for Dad");
+		});
+		byteFile.onCancel.add(function()
+		{
+			Pointer.ofArray(vocalBytes[1]).destroyArray();
+			bfWav.destroy();
+			Pointer.ofArray(vocalBytes[0]).destroyArray();
+			dadWav.destroy();
+			byteFile.onCancel.removeAll();
+		});
+		byteFile.save(bfWav, null, _song.song.toLowerCase() + "_bfVocals.wav", "Save Vocals for BF");
 	}
 
 	function swapSections()
