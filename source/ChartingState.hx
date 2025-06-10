@@ -62,12 +62,15 @@ class ChartingState extends MusicBeatState
 	public static var lastSection:Int = 0;
 
 	var bpmTxt:FlxText;
-
 	var player1DropDown:FlxUIDropDownMenu;
 	var player2DropDown:FlxUIDropDownMenu;
+	var gfDropDown:FlxUIDropDownMenu;
+	var stageDropDown:FlxUIDropDownMenu;
 	var diffList:Array<String> = ["-easy", "", "-hard"];
 	var diffDropFinal:String = "";
-	var metronome:FlxUICheckBox;
+	var bfClick:FlxUICheckBox;
+	var opClick:FlxUICheckBox;
+	var gotoSectionStepper:FlxUINumericStepper;
 
 	// var halfSpeedCheck:FlxUICheckBox;
 	var strumLine:FlxSprite;
